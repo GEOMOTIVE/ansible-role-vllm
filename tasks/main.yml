@@ -86,10 +86,9 @@
   changed_when: torch_install.rc != 0
 
 - name: Show torch version
-  ansible.builtin.command: >-
-    "{{ vllm_venv_dir }}/bin/python -c 'import torch;
-    print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda,
-    \"cuda_available\": torch.cuda.is_available()})'"
+  ansible.builtin.command: "{{ vllm_venv_dir }}/bin/python -c 'import torch; \
+                            print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda,\
+                             \"cuda_available\": torch.cuda.is_available()})'"
   register: torch_info
   changed_when: torch_info.rc != 0
 
