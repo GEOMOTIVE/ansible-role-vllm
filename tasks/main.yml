@@ -1,39 +1,40 @@
 ---
 
-- include_vars: "{{ item }}"
+- name: Include system-specific vars
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
-  - "../vars/{{ansible_distribution}}-{{ansible_distribution_version}}.yml"
-  - "../vars/{{ansible_distribution}}-{{ansible_distribution_major_version}}.yml"
-  - "../vars/{{ansible_distribution}}.yml"
-  - "../vars/{{ansible_os_family}}.yml"
-  - "../vars/default.yml"
+    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_version }}.yml"
+    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+    - "../vars/{{ ansible_distribution }}.yml"
+    - "../vars/{{ ansible_os_family }}.yml"
+    - "../vars/default.yml"
 
 - name: Update apt cache
-  apt:
+  ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
 
 - name: Install OS dependencies
-  apt:
+  ansible.builtin.apt:
     name: "{{ VLLM_DEFAULT_PACKAGES }}"
     state: present
 
 - name: Create vLLM group
-  group:
+  ansible.builtin.group:
     name: "{{ vllm_group }}"
     state: present
 
 - name: Create vLLM user
-  user:
+  ansible.builtin.user:
     name: "{{ vllm_user }}"
     group: "{{ vllm_group }}"
     home: "{{ vllm_root_dir }}"
     shell: /usr/sbin/nologin
-    create_home: no
-    system: yes
+    create_home: false
+    system: true
 
 - name: Create directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ vllm_user }}"
@@ -46,12 +47,12 @@
     - "{{ vllm_log_dir }}"
 
 - name: Create Python venv
-  command: "python3 -m venv {{ vllm_venv_dir }}"
+  ansible.builtin.command: "python3 -m venv {{ vllm_venv_dir }}"
   args:
     creates: "{{ vllm_venv_dir }}/bin/activate"
 
 - name: Upgrade pip/setuptools/wheel in venv
-  command: "{{ vllm_venv_dir }}/bin/pip install --upgrade pip setuptools wheel"
+  ansible.builtin.command: "{{ vllm_venv_dir }}/bin/pip install --upgrade pip setuptools wheel"
 
 - name: (GPU) Install PyTorch CUDA wheels
   when: use_gpu | bool
@@ -60,7 +61,7 @@
       torch{{ ('==' + torch_version) if torch_version|length > 0 else '' }}
       torchvision
       torchaudio
-  command: >-
+  ansible.builtin.command: >-
     {{ vllm_venv_dir }}/bin/pip install
     --extra-index-url https://download.pytorch.org/whl/{{ pytorch_cuda_channel }}
     {{ torch_spec }}
@@ -72,11 +73,12 @@
       torch{{ ('==' + torch_version) if torch_version|length > 0 else '' }}
       torchvision
       torchaudio
-  command: >-
+  ansible.builtin.command: >-
     {{ vllm_venv_dir }}/bin/pip install {{ torch_spec }}
 
 - name: Show torch version
-  command: "{{ vllm_venv_dir }}/bin/python -c 'import torch; print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda, \"cuda_available\": torch.cuda.is_available()})'"
+  ansible.builtin.command: >-
+    "{{ vllm_venv_dir }}/bin/python -c 'import torch; print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda, \"cuda_available\": torch.cuda.is_available()})'"
   register: torch_info
 
 - name: Debug torch info
@@ -85,7 +87,7 @@
 
 - name: (Optional) Verify NVIDIA driver presence
   when: use_gpu | bool
-  command: nvidia-smi
+  ansible.builtin.command: nvidia-smi
   register: nvsmi
   changed_when: false
   failed_when: nvsmi.rc != 0
@@ -94,7 +96,7 @@
   vars:
     vllm_pkg: >-
       vllm{{ ('==' + vllm_version) if vllm_version|length > 0 else '' }}
-  command: "{{ vllm_venv_dir }}/bin/pip install {{ vllm_pkg }}"
+  ansible.builtin.command: "{{ vllm_venv_dir }}/bin/pip install {{ vllm_pkg }}"
 
 # Optional, often beneficial on recent GPUs; safe to skip if it fails
 - name: Try installing flash-attn (best-effort)
