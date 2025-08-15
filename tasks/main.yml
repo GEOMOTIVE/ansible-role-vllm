@@ -78,7 +78,9 @@
 
 - name: Show torch version
   ansible.builtin.command: >-
-    "{{ vllm_venv_dir }}/bin/python -c 'import torch; print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda, \"cuda_available\": torch.cuda.is_available()})'"
+    "{{ vllm_venv_dir }}/bin/python -c 'import torch;
+    print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda, 
+    \"cuda_available\": torch.cuda.is_available()})'"
   register: torch_info
 
 - name: Debug torch info
