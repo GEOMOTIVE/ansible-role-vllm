@@ -109,6 +109,8 @@
     vllm_pkg: >-
       vllm{{ ('==' + vllm_version) if vllm_version | length > 0 else '' }}
   ansible.builtin.command: "{{ vllm_venv_dir }}/bin/pip install {{ vllm_pkg }}"
+  register: vllm_install
+  changed_when: vllm_install.rc != 0
 
 # Optional, often beneficial on recent GPUs; safe to skip if it fails
 - name: Try installing flash-attn (best-effort)
@@ -118,6 +120,8 @@
     {{ vllm_venv_dir }}/bin/pip install flash-attn --no-build-isolation || true
   args:
     executable: /bin/bash
+  register: flash_attn_install
+  changed_when: flash_attn_install.rc != 0
 
 - name: Create vLLM systemd unit
   ansible.builtin.template:
