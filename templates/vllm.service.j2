@@ -1,0 +1,27 @@
+[Unit]
+Description=vLLM OpenAI-compatible Server (native)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ vllm_user }}
+Group={{ vllm_group }}
+WorkingDirectory={{ vllm_root_dir }}
+Environment="HUGGING_FACE_HUB_TOKEN={{ huggingface_token }}"
+Environment="PYTHONUNBUFFERED=1"
+Environment="TRANSFORMERS_CACHE={{ vllm_cache_dir }}"
+Environment="HF_HOME={{ vllm_cache_dir }}/hf"
+ExecStart={{ vllm_venv_dir }}/bin/python -m vllm.entrypoints.openai.api_server \
+  --model {{ vllm_model }} \
+  {% for arg in vllm_args %}{{ arg }} {% endfor %} {% if api_key|length > 0 %}--api-key {{ api_key }}{% endif %}
+
+Restart=always
+RestartSec=3
+# Allow long initial downloads
+TimeoutStartSec=0
+# Increase file descriptors for many concurrent conns
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

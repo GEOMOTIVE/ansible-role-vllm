@@ -1,0 +1,45 @@
+---
+# Optional: open firewall
+configure_ufw: true
+
+api_key: "YOUR-UUID-VALUE"
+
+# === Basic config ===
+vllm_user: vllm
+vllm_group: vllm
+vllm_root_dir: /opt/vllm
+vllm_venv_dir: "{{ vllm_root_dir }}/venv"
+vllm_download_dir: "{{ vllm_root_dir }}/models"
+vllm_cache_dir: "{{ vllm_root_dir }}/cache"
+vllm_log_dir: /var/log/vllm
+vllm_port: 8000
+vllm_max_model_len: 8192
+
+# Model can be HF repo id OR local path
+vllm_model: "jinaai/jina-embeddings-v4-vllm-retrieval"
+
+# Set if you need private HF access
+huggingface_token: ""  # e.g. "{{ lookup('env','HF_TOKEN') | default('', true) }}"
+
+# === GPU/CPU selection ===
+use_gpu: false
+
+# If GPU: choose the proper PyTorch CUDA wheel channel (cu121 or cu122 typical)
+pytorch_cuda_channel: "cu121"   # options e.g. cu121, cu122; ignored if use_gpu=false
+
+# Pin versions (good defaults; adjust to your stack)
+torch_version: ""               # e.g. "2.4.0" or leave empty for latest
+vllm_version: ""                # e.g. "0.5.4" or leave empty for latest
+
+# vLLM runtime flags — tune to your hardware/workload
+vllm_args:
+  - "--port {{ vllm_port }}"
+  - "--download-dir {{ vllm_download_dir }}"
+  - "--served-model-name default"
+  - "--max-num-seqs 2048"
+  - "--max-model-len {{ vllm_max_model_len }}"
+  - "--gpu-memory-utilization 0.90"
+  - "--tensor-parallel-size 1"   # increase to shard across multiple GPUs
+  - "--trust-remote-code"
+  # - "--quantization=awq"       # or gptq/fp8 if supported by your build
+
