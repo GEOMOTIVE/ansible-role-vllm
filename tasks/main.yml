@@ -16,7 +16,7 @@
 
 - name: Install OS dependencies
   ansible.builtin.apt:
-    name: "{{ VLLM_DEFAULT_PACKAGES }}"
+    name: "{{ vllm_default_packages }}"
     state: present
 
 - name: Create vLLM group
@@ -58,7 +58,7 @@
   when: use_gpu | bool
   vars:
     torch_spec: >-
-      torch{{ ('==' + torch_version) if torch_version|length > 0 else '' }}
+      torch{{ ('==' + torch_version) if torch_version | length > 0 else '' }}
       torchvision
       torchaudio
   ansible.builtin.command: >-
@@ -70,7 +70,7 @@
   when: not use_gpu | bool
   vars:
     torch_spec: >-
-      torch{{ ('==' + torch_version) if torch_version|length > 0 else '' }}
+      torch{{ ('==' + torch_version) if torch_version | length > 0 else '' }}
       torchvision
       torchaudio
   ansible.builtin.command: >-
@@ -82,7 +82,7 @@
   register: torch_info
 
 - name: Debug torch info
-  debug:
+  ansible.builtin.debug:
     var: torch_info.stdout
 
 - name: (Optional) Verify NVIDIA driver presence
@@ -95,20 +95,20 @@
 - name: Install vLLM (and extras)
   vars:
     vllm_pkg: >-
-      vllm{{ ('==' + vllm_version) if vllm_version|length > 0 else '' }}
+      vllm{{ ('==' + vllm_version) if vllm_version | length > 0 else '' }}
   ansible.builtin.command: "{{ vllm_venv_dir }}/bin/pip install {{ vllm_pkg }}"
 
 # Optional, often beneficial on recent GPUs; safe to skip if it fails
 - name: Try installing flash-attn (best-effort)
   when: use_gpu | bool
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     {{ vllm_venv_dir }}/bin/pip install flash-attn --no-build-isolation || true
   args:
     executable: /bin/bash
 
 - name: Create vLLM systemd unit
-  template:
+  ansible.builtin.template:
     src: vllm.service.j2
     dest: /etc/systemd/system/vllm.service
     mode: "0644"
@@ -117,7 +117,7 @@
     - Restart vLLM
 
 - name: Enable service
-  systemd:
+  ansible.builtin.systemd:
     name: vllm
     enabled: true
     daemon_reload: true
@@ -131,14 +131,14 @@
     proto: tcp
 
 - name: Wait for vLLM to start listening
-  wait_for:
+  ansible.builtin.wait_for:
     host: "127.0.0.1"
     port: "{{ vllm_port }}"
     delay: 2
     timeout: 300
 
 - name: Probe /v1/models
-  uri:
+  ansible.builtin.uri:
     url: "http://127.0.0.1:{{ vllm_port }}/v1/models"
     method: GET
     status_code: 200
@@ -147,5 +147,5 @@
   register: probe
 
 - name: Show vLLM models
-  debug:
+  ansible.builtin.debug:
     var: probe.json

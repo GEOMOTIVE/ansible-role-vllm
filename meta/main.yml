@@ -32,7 +32,7 @@ galaxy_info:
   platforms:
     - name: Ubuntu
       versions:
-        - 24.04
+        - all
 
   galaxy_tags:
     - vllm
