@@ -14,7 +14,7 @@ Environment="TRANSFORMERS_CACHE={{ vllm_cache_dir }}"
 Environment="HF_HOME={{ vllm_cache_dir }}/hf"
 ExecStart={{ vllm_venv_dir }}/bin/python -m vllm.entrypoints.openai.api_server \
   --model {{ vllm_model }} \
-  {% for arg in vllm_args %}{{ arg }} {% endfor %}{% for key in api_key %} --api-key {{ key }}{% endfor %}
+  {% for arg in vllm_args %}{{ arg }} {% endfor %}{% if api_key|length > 0 %}--api-key {{ api_key if api_key is string else api_key | join(' ') }}{% endif %}
 
 Restart=always
 RestartSec=3

@@ -158,7 +158,7 @@
     method: GET
     status_code: 200
     headers:
-      Authorization: "Bearer {{ api_key | first }}"
+      Authorization: "Bearer {{ api_key if api_key is string else api_key | first }}"
   register: probe
   when: api_key | length > 0
 
