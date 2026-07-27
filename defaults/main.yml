@@ -42,4 +42,3 @@ vllm_args:
   - "--tensor-parallel-size 1"   # increase to shard across multiple GPUs
   - "--trust-remote-code"
   # - "--quantization=awq"       # or gptq/fp8 if supported by your build
-

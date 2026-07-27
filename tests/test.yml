@@ -1,5 +1,5 @@
----
-- hosts: localhost
-  remote_user: root
-  roles:
-    - ansible-role-vllm
+# ---
+# - hosts: localhost
+#   remote_user: root
+#   roles:
+#     - vllm

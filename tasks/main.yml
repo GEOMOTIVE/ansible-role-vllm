@@ -1,39 +1,40 @@
 ---
 
-- include_vars: "{{ item }}"
+- name: Include system-specific vars
+  ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
-  - "../vars/{{ansible_distribution}}-{{ansible_distribution_version}}.yml"
-  - "../vars/{{ansible_distribution}}-{{ansible_distribution_major_version}}.yml"
-  - "../vars/{{ansible_distribution}}.yml"
-  - "../vars/{{ansible_os_family}}.yml"
-  - "../vars/default.yml"
+    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_version }}.yml"
+    - "../vars/{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+    - "../vars/{{ ansible_distribution }}.yml"
+    - "../vars/{{ ansible_os_family }}.yml"
+    - "../vars/default.yml"
 
 - name: Update apt cache
-  apt:
+  ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
 
 - name: Install OS dependencies
-  apt:
-    name: "{{ VLLM_DEFAULT_PACKAGES }}"
+  ansible.builtin.apt:
+    name: "{{ vllm_default_packages }}"
     state: present
 
 - name: Create vLLM group
-  group:
+  ansible.builtin.group:
     name: "{{ vllm_group }}"
     state: present
 
 - name: Create vLLM user
-  user:
+  ansible.builtin.user:
     name: "{{ vllm_user }}"
     group: "{{ vllm_group }}"
     home: "{{ vllm_root_dir }}"
     shell: /usr/sbin/nologin
-    create_home: no
-    system: yes
+    create_home: false
+    system: true
 
 - name: Create directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ vllm_user }}"
@@ -46,46 +47,58 @@
     - "{{ vllm_log_dir }}"
 
 - name: Create Python venv
-  command: "python3 -m venv {{ vllm_venv_dir }}"
+  ansible.builtin.command: "python3 -m venv {{ vllm_venv_dir }}"
   args:
     creates: "{{ vllm_venv_dir }}/bin/activate"
+  register: vllm_venv
+  changed_when: vllm_venv.rc != 0
+
 
 - name: Upgrade pip/setuptools/wheel in venv
-  command: "{{ vllm_venv_dir }}/bin/pip install --upgrade pip setuptools wheel"
+  ansible.builtin.command: "{{ vllm_venv_dir }}/bin/pip install --upgrade pip setuptools wheel"
+  register: vllm_upgrade
+  changed_when: vllm_upgrade.rc != 0
 
 - name: (GPU) Install PyTorch CUDA wheels
   when: use_gpu | bool
   vars:
     torch_spec: >-
-      torch{{ ('==' + torch_version) if torch_version|length > 0 else '' }}
+      torch{{ ('==' + torch_version) if torch_version | length > 0 else '' }}
       torchvision
       torchaudio
-  command: >-
+  ansible.builtin.command: >-
     {{ vllm_venv_dir }}/bin/pip install
     --extra-index-url https://download.pytorch.org/whl/{{ pytorch_cuda_channel }}
     {{ torch_spec }}
+  register: vllm_venv_torch
+  changed_when: vllm_venv_torch.rc != 0
 
 - name: (CPU) Install PyTorch CPU wheels
   when: not use_gpu | bool
   vars:
     torch_spec: >-
-      torch{{ ('==' + torch_version) if torch_version|length > 0 else '' }}
+      torch{{ ('==' + torch_version) if torch_version | length > 0 else '' }}
       torchvision
       torchaudio
-  command: >-
+  ansible.builtin.command: >-
     {{ vllm_venv_dir }}/bin/pip install {{ torch_spec }}
+  register: torch_install
+  changed_when: torch_install.rc != 0
 
 - name: Show torch version
-  command: "{{ vllm_venv_dir }}/bin/python -c 'import torch; print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda, \"cuda_available\": torch.cuda.is_available()})'"
+  ansible.builtin.command: "{{ vllm_venv_dir }}/bin/python -c 'import torch; \
+                            print({\"torch\": torch.__version__, \"cuda\": torch.version.cuda,\
+                             \"cuda_available\": torch.cuda.is_available()})'"
   register: torch_info
+  changed_when: torch_info.rc != 0
 
 - name: Debug torch info
-  debug:
+  ansible.builtin.debug:
     var: torch_info.stdout
 
 - name: (Optional) Verify NVIDIA driver presence
   when: use_gpu | bool
-  command: nvidia-smi
+  ansible.builtin.command: nvidia-smi
   register: nvsmi
   changed_when: false
   failed_when: nvsmi.rc != 0
@@ -93,20 +106,24 @@
 - name: Install vLLM (and extras)
   vars:
     vllm_pkg: >-
-      vllm{{ ('==' + vllm_version) if vllm_version|length > 0 else '' }}
-  command: "{{ vllm_venv_dir }}/bin/pip install {{ vllm_pkg }}"
+      vllm{{ ('==' + vllm_version) if vllm_version | length > 0 else '' }}
+  ansible.builtin.command: "{{ vllm_venv_dir }}/bin/pip install {{ vllm_pkg }}"
+  register: vllm_install
+  changed_when: vllm_install.rc != 0
 
 # Optional, often beneficial on recent GPUs; safe to skip if it fails
 - name: Try installing flash-attn (best-effort)
   when: use_gpu | bool
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     {{ vllm_venv_dir }}/bin/pip install flash-attn --no-build-isolation || true
   args:
     executable: /bin/bash
+  register: flash_attn_install
+  changed_when: flash_attn_install.rc != 0
 
 - name: Create vLLM systemd unit
-  template:
+  ansible.builtin.template:
     src: vllm.service.j2
     dest: /etc/systemd/system/vllm.service
     mode: "0644"
@@ -115,7 +132,7 @@
     - Restart vLLM
 
 - name: Enable service
-  systemd:
+  ansible.builtin.systemd:
     name: vllm
     enabled: true
     daemon_reload: true
@@ -129,14 +146,14 @@
     proto: tcp
 
 - name: Wait for vLLM to start listening
-  wait_for:
+  ansible.builtin.wait_for:
     host: "127.0.0.1"
     port: "{{ vllm_port }}"
     delay: 2
     timeout: 300
 
 - name: Probe /v1/models
-  uri:
+  ansible.builtin.uri:
     url: "http://127.0.0.1:{{ vllm_port }}/v1/models"
     method: GET
     status_code: 200
@@ -145,5 +162,5 @@
   register: probe
 
 - name: Show vLLM models
-  debug:
+  ansible.builtin.debug:
     var: probe.json
