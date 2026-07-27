@@ -158,8 +158,9 @@
     method: GET
     status_code: 200
     headers:
-      Authorization: Bearer {{ api_key }}
+      Authorization: "Bearer {{ api_key | first }}"
   register: probe
+  when: api_key | length > 0
 
 - name: Show vLLM models
   ansible.builtin.debug:
