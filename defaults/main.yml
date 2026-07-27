@@ -2,7 +2,11 @@
 # Optional: open firewall
 configure_ufw: true
 
-api_key: "YOUR-UUID-VALUE"
+# Provide one or more API keys as a list. Empty list = no auth.
+#   api_key:
+#     - "my-first-key"
+#     - "my-second-key"
+api_key: []
 
 # === Basic config ===
 vllm_user: vllm

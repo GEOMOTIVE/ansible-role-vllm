@@ -157,8 +157,7 @@
     url: "http://127.0.0.1:{{ vllm_port }}/v1/models"
     method: GET
     status_code: 200
-    headers:
-      Authorization: Bearer {{ api_key }}
+    headers: "{{ {'Authorization': 'Bearer ' ~ (api_key if api_key is string else api_key | first)} if (api_key | length > 0) else {} }}"
   register: probe
 
 - name: Show vLLM models
